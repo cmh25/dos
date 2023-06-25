@@ -1,0 +1,106 @@
+# Microsoft Visual C++ generated build script - Do not modify
+
+PROJ = TRIANGLE
+DEBUG = 1
+PROGTYPE = 6
+CALLER = 
+ARGS = lawnmowr.cpp
+DLLS = 
+D_RCDEFINES = /d_DEBUG
+R_RCDEFINES = /dNDEBUG
+ORIGIN = MSVC
+ORIGIN_VER = 1.00
+PROJPATH = Z:\OLDPROG\PROG~A5A\DOSPROG\TRIANGLE\TRIANGLE\
+USEMFC = 0
+CC = cl
+CPP = cl
+CXX = cl
+CCREATEPCHFLAG = 
+CPPCREATEPCHFLAG = 
+CUSEPCHFLAG = 
+CPPUSEPCHFLAG = 
+FIRSTC =             
+FIRSTCPP = SCREEN.CPP  
+RC = rc
+CFLAGS_D_DEXE = /nologo /G2 /FPi87 /W3 /Zi /AL /Od /D "_DEBUG" /D "_DOS" /FR /Fd"TRIANGLE.PDB"
+CFLAGS_R_DEXE = /nologo /Gs /G3 /FPi87 /W3 /AL /Ob2 /D "NDEBUG" /D "_DOS" /FR 
+LFLAGS_D_DEXE = /NOLOGO /NOI /STACK:5120 /ONERROR:NOEXE /CO 
+LFLAGS_R_DEXE = /NOLOGO /NOI /STACK:5120 /ONERROR:NOEXE 
+LIBS_D_DEXE = oldnames llibc7 
+LIBS_R_DEXE = oldnames llibc7 
+RCFLAGS = /nologo
+RESFLAGS = /nologo
+RUNFLAGS = 
+OBJS_EXT = 
+LIBS_EXT = CMHGRFX.LIB 
+!if "$(DEBUG)" == "1"
+CFLAGS = $(CFLAGS_D_DEXE)
+LFLAGS = $(LFLAGS_D_DEXE)
+LIBS = $(LIBS_D_DEXE)
+MAPFILE = nul
+RCDEFINES = $(D_RCDEFINES)
+!else
+CFLAGS = $(CFLAGS_R_DEXE)
+LFLAGS = $(LFLAGS_R_DEXE)
+LIBS = $(LIBS_R_DEXE)
+MAPFILE = nul
+RCDEFINES = $(R_RCDEFINES)
+!endif
+!if [if exist MSVC.BND del MSVC.BND]
+!endif
+SBRS = SCREEN.SBR \
+		TRIANGLE.SBR \
+		TRIATEST.SBR
+
+
+SCREEN_DEP = z:\oldprog\prog~a5a\dosprog\triangle\triangle\screen.h \
+	z:\oldprog\prog~a5a\dosprog\triangle\triangle\cmhgrfx.h
+
+
+TRIANGLE_DEP = z:\oldprog\prog~a5a\dosprog\triangle\triangle\triangle.h \
+	z:\oldprog\prog~a5a\dosprog\triangle\triangle\screen.h \
+	z:\oldprog\prog~a5a\dosprog\triangle\triangle\cmhgrfx.h
+
+
+TRIATEST_DEP = z:\oldprog\prog~a5a\dosprog\triangle\triangle\triangle.h \
+	z:\oldprog\prog~a5a\dosprog\triangle\triangle\screen.h \
+	z:\oldprog\prog~a5a\dosprog\triangle\triangle\cmhgrfx.h
+
+
+CMHGRFX_DEP = 
+
+all:	$(PROJ).EXE $(PROJ).BSC
+
+SCREEN.OBJ:	SCREEN.CPP $(SCREEN_DEP)
+	$(CPP) $(CFLAGS) $(CPPCREATEPCHFLAG) /c SCREEN.CPP
+
+TRIANGLE.OBJ:	TRIANGLE.CPP $(TRIANGLE_DEP)
+	$(CPP) $(CFLAGS) $(CPPUSEPCHFLAG) /c TRIANGLE.CPP
+
+TRIATEST.OBJ:	TRIATEST.CPP $(TRIATEST_DEP)
+	$(CPP) $(CFLAGS) $(CPPUSEPCHFLAG) /c TRIATEST.CPP
+
+$(PROJ).EXE::	SCREEN.OBJ TRIANGLE.OBJ TRIATEST.OBJ $(OBJS_EXT) $(DEFFILE)
+	echo >NUL @<<$(PROJ).CRF
+SCREEN.OBJ +
+TRIANGLE.OBJ +
+TRIATEST.OBJ +
+$(OBJS_EXT)
+$(PROJ).EXE
+$(MAPFILE)
+c:\msvc\lib\+
+c:\msvc\mfc\lib\+
+CMHGRFX.LIB+
+$(LIBS)
+$(DEFFILE);
+<<
+	link $(LFLAGS) @$(PROJ).CRF
+
+run: $(PROJ).EXE
+	$(PROJ) $(RUNFLAGS)
+
+
+$(PROJ).BSC: $(SBRS)
+	bscmake @<<
+/o$@ $(SBRS)
+<<

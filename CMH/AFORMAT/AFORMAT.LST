@@ -1,0 +1,94 @@
+Microsoft (R) Macro Assembler Version 6.11		    12/22/99 23:46:17
+aformat.asm						     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;				  aformat.asm
+				;				   12-22-99
+				;
+				; Formats a 1.44M floppy using the cmh file system
+				; Tracks - 80 (1 track on each side of cylinder)
+				; Cylinders - 80
+				; Sectors per track - 19
+				; Heads - 2
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				.model large
+				.stack 100h
+ 0000				.data
+ 0000  0200 [				buffer		db	512 dup(0ffh)
+        FF
+       ]
+ 0000				.code
+ 0000				start:
+ 0000  B8 ---- R			mov ax,@data
+ 0003  8E C0				mov es,ax
+ 0005  B4 02				mov ah,2
+ 0007  B0 01				mov al,1
+ 0009  B5 00				mov ch,0
+ 000B  B1 01				mov cl,1
+ 000D  B6 00				mov dh,0
+ 000F  BB 0000 R			mov bx,offset buffer
+ 0012  CD 13				int 13h
+
+ 0014  B8 0040				mov ax,0040h
+ 0017  8E C0				mov es,ax
+ 0019  BF 0072				mov di,0072h
+ 001C  B8 0000				mov ax,0
+ 001F  AB				stosw
+ 0020  B8 0013				mov ax,13h
+ 0023  EA				db 0eah
+ 0024  F000				dw 0f000h
+ 0026  EF6F				dw 0ef6fh
+
+					;mov ah,0
+					;int 16h
+ 0028  B8 0040				mov ax,40h
+ 002B  8E D8				mov ds,ax
+ 002D  B0 0B				mov al,0bh
+ 002F  E6 20				out 20h,al
+ 0031  E6 EB				out 0ebh,al
+ 0033  E4 20				in al,20h
+ 0035  E6 EB				out 0ebh,al
+
+ 0037  B4 00				mov ah,0
+ 0039  CD 16				int 16h
+
+
+ 003B  B8 4C00				mov ax,4c00h
+ 003E  CD 21				int 21h
+
+				end start
+Microsoft (R) Macro Assembler Version 6.11		    12/22/99 23:46:17
+aformat.asm						     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+AFORMAT_TEXT . . . . . . . . . .	16 Bit	 0040	  Word	  Public  'CODE'	
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 0200	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 0100	  Para	  Stack	  'STACK'	 
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0001h	 
+@DataSize  . . . . . . . . . . .	Number	 0001h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0005h	 
+@code  . . . . . . . . . . . . .	Text   	 AFORMAT_TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+buffer . . . . . . . . . . . . .	Byte	 0000	  _DATA	
+start  . . . . . . . . . . . . .	L Near	 0000	  AFORMAT_TEXT	
+
+	   0 Warnings
+	   0 Errors

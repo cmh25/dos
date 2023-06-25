@@ -1,0 +1,104 @@
+Microsoft (R) Macro Assembler Version 6.11		    01/17/00 16:10:54
+..\PROTEST2\protest2.asm				     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;				protest2.asm
+				;				  1-17-00
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+				.model small
+				.586p
+				.stack 500h
+
+ 0000				.data
+ 0000  0200 [				buffer01	db		512 dup(0)
+        00
+       ]
+ 0200  0800 [				buffer02	db		2048 dup(0)
+        00
+       ]
+ 0A00 00				hand		db		0
+ 0A01 0A 0D 4F 4B 24			message1	db		0ah,0dh,"OK$"
+ 0A06 0A 0D 53 6F 6D 65			message2	db		0ah,0dh,"Something went wrong$"
+       74 68 69 6E 67 20
+       77 65 6E 74 20 77
+       72 6F 6E 67 24
+
+ 0000				.code
+ 0000				start:
+ 0000  EB 00				jmp skip
+ 0002				sector1:
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+					; sector 1
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 0002				endsector1:
+ 0002				sector2345:
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+					; sector2345
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 0002				endsector2345:
+ 0002				skip:
+
+ 0002  BA 0A01 R			mov dx,offset message1
+ 0005  B4 09				mov ah,9
+ 0007  CD 21				int 21h
+
+ 0009  BA 0A06 R			mov dx,offset message2
+ 000C  B4 09				mov ah,9
+ 000E  CD 21				int 21h
+
+ 0010  B8 0000				mov ax,0
+ 0013  CD 16				int 16h
+
+ 0015  B8 0000				mov ax,0
+ 0018  CD 21				int 21h
+				end start
+				code ends
+Microsoft (R) Macro Assembler Version 6.11		    01/17/00 16:10:54
+..\PROTEST2\protest2.asm				     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 0A1D	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 0500	  Para	  Stack	  'STACK'	 
+_TEXT  . . . . . . . . . . . . .	16 Bit	 001A	  Word	  Public  'CODE'	
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+buffer01 . . . . . . . . . . . .	Byte	 0000	  _DATA	
+buffer02 . . . . . . . . . . . .	Byte	 0200	  _DATA	
+endsector1 . . . . . . . . . . .	L Near	 0002	  _TEXT	
+endsector2345  . . . . . . . . .	L Near	 0002	  _TEXT	
+hand . . . . . . . . . . . . . .	Byte	 0A00	  _DATA	
+message1 . . . . . . . . . . . .	Byte	 0A01	  _DATA	
+message2 . . . . . . . . . . . .	Byte	 0A06	  _DATA	
+sector1  . . . . . . . . . . . .	L Near	 0002	  _TEXT	
+sector2345 . . . . . . . . . . .	L Near	 0002	  _TEXT	
+skip . . . . . . . . . . . . . .	L Near	 0002	  _TEXT	
+start  . . . . . . . . . . . . .	L Near	 0000	  _TEXT	
+
+	   0 Warnings
+	   0 Errors

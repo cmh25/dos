@@ -1,0 +1,149 @@
+Microsoft (R) Macro Assembler Version 6.11		    01/01/00 18:35:40
+..\MAKEBOOT\MAKEBOOT.ASM				     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;				makeboot.asm
+				;				 12-21-99
+				;
+				; Copies a DOS .exe file into a 512 byte buffer.
+				; Then writes the buffer to drive 0, cylinder 0, track 0, sector 1
+				;
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				.model small
+				.586p
+				.stack 100h
+ 0000				.data
+ 0000  0200 [				buffer		db	512 dup(0)
+        00
+       ]
+ 0200 0D 53 6F 6D 65 74			error1		db	0dh,'Something went wrong!$'
+       68 69 6E 67 20 77
+       65 6E 74 20 77 72
+       6F 6E 67 21 24
+ 0217 0D 4F 4B 24			success 	db	0dh,'OK$'
+ 021B 04				count		db	4
+ 0000				.code
+					org 7bfeh
+ 7BFE				start:
+ 7BFE  EB 1B				jmp skip
+ 7C00				      bootdisk:
+					;
+					; Instructions to be copied to boot disk
+					; Execution will begin here at bootup
+					;********************************************************************
+					;********************************************************************
+ 7C00  8C C8				mov ax,cs
+ 7C02  8E D8				mov ds,ax
+ 7C04  8E C0				mov es,ax
+ 7C06  BE 7C19 R			mov si,testvar
+ 7C09  8B 04				mov ax,[si]
+ 7C0B  3D 5521				cmp ax,5521h
+ 7C0E  74 07				jz stop
+ 7C10  B8 0E30				mov ax,0e30h
+ 7C13  B7 00				mov bh,0
+ 7C15  CD 10				int 10h
+ 7C17				      stop:
+ 7C17  EB FE				jmp stop
+ 7C19				      testvar:
+ 7C19  5521				dw 5521h
+					;********************************************************************
+					;********************************************************************
+ 7C1B				      skip:
+					;
+					; Copy CS:bootdisk to buffer (512 bytes)
+					;
+ 7C1B  B8 ---- R			mov ax,@data
+ 7C1E  8E D8				mov ds,ax
+ 7C20  1E				push ds
+ 7C21  8E C0				mov es,ax
+ 7C23  BF 0000 R			mov di,offset buffer
+ 7C26  8C C8				mov ax,cs
+ 7C28  8E D8				mov ds,ax
+ 7C2A  B9 7C1B R			mov cx,skip
+ 7C2D  81 E9 7C00 R			sub cx,bootdisk
+ 7C31  BE 7C00 R			mov si,bootdisk
+ 7C34  F3/ A4				rep movsb
+ 7C36  1F				pop ds
+					;
+					; Write buffer to file
+					;
+ 7C37				      again:
+ 7C37  FE 0E 021B R			dec count
+ 7C3B  80 3E 021B R 00			cmp count,0
+ 7C40  74 24				jz error
+ 7C42  B4 00				mov ah,0
+ 7C44  B2 00				mov dl,0
+ 7C46  CD 13				int 13h
+ 7C48  B8 0301				mov ax,0301h
+ 7C4B  B5 00				mov ch,0
+ 7C4D  B1 01				mov cl,1
+ 7C4F  B6 00				mov dh,0
+ 7C51  B2 00				mov dl,0
+ 7C53  BB 0000 R			mov bx,offset buffer
+ 7C56  CD 13				int 13h
+ 7C58  80 FC 00				cmp ah,0
+ 7C5B  75 DA				jnz again
+ 7C5D  BA 0217 R			mov dx,offset success
+ 7C60  B4 09				mov ah,9
+ 7C62  CD 21				int 21h
+ 7C64  EB 07				jmp done
+ 7C66				      error:
+					;
+					; Error handling
+					;
+ 7C66  BA 0200 R			mov dx,offset error1
+ 7C69  B4 09				mov ah,9
+ 7C6B  CD 21				int 21h
+ 7C6D				      done:
+					;
+					; Exit
+					;
+ 7C6D  B8 4C00				mov ax,4c00h
+ 7C70  CD 21				int 21h
+
+				end start
+Microsoft (R) Macro Assembler Version 6.11		    01/01/00 18:35:40
+..\MAKEBOOT\MAKEBOOT.ASM				     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 021C	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 0100	  Para	  Stack	  'STACK'	 
+_TEXT  . . . . . . . . . . . . .	16 Bit	 7C72	  Word	  Public  'CODE'	
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+again  . . . . . . . . . . . . .	L Near	 7C37	  _TEXT	
+bootdisk . . . . . . . . . . . .	L Near	 7C00	  _TEXT	
+buffer . . . . . . . . . . . . .	Byte	 0000	  _DATA	
+count  . . . . . . . . . . . . .	Byte	 021B	  _DATA	
+done . . . . . . . . . . . . . .	L Near	 7C6D	  _TEXT	
+error1 . . . . . . . . . . . . .	Byte	 0200	  _DATA	
+error  . . . . . . . . . . . . .	L Near	 7C66	  _TEXT	
+skip . . . . . . . . . . . . . .	L Near	 7C1B	  _TEXT	
+start  . . . . . . . . . . . . .	L Near	 7BFE	  _TEXT	
+stop . . . . . . . . . . . . . .	L Near	 7C17	  _TEXT	
+success  . . . . . . . . . . . .	Byte	 0217	  _DATA	
+testvar  . . . . . . . . . . . .	L Near	 7C19	  _TEXT	
+
+	   0 Warnings
+	   0 Errors

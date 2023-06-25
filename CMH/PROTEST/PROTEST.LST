@@ -1,0 +1,1161 @@
+Microsoft (R) Macro Assembler Version 6.11		    01/12/00 20:06:48
+PROTEST.ASM						     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;				protest.asm
+				;				 12-25-99
+				;
+				; Copies a DOS .exe file into a 512 byte buffer.
+				; Then writes the buffer to the boot sector of a:
+				;
+				; ****All my labels and offsets are fucked up *******************
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				.model small
+				.586p
+				.stack 100h
+ 0000				.data
+ 0000  0200 [				buffer01	db	512 dup(0)
+        00
+       ]
+ 0200  0A00 [				buffer02	db	2560 dup(0)
+        00
+       ]
+ 0C00 0A 0D 53 6F 6D 65			error1		db	0ah,0dh,'Something went wrong!',0ah,0dh,'$'
+       74 68 69 6E 67 20
+       77 65 6E 74 20 77
+       72 6F 6E 67 21 0A
+       0D 24
+ 0C1A 0A 0D 4F 4B 0A 0D			success 	db	0ah,0dh,'OK',0ah,0dh,'$'
+       24
+ 0C21 04				count		db	4
+ 0000				.code
+					org 7bfdh
+ 7BFD				start:
+ 7BFD  E9 08CA				jmp skip
+ 7C00				      sector_1:
+					;
+					; Instructions to be copied to boot disk
+					; Execution will begin here at bootup
+					;********************************************************************
+					;********************************************************************
+ 7C00  8C C8				mov ax,cs
+ 7C02  8E D8				mov ds,ax
+ 7C04  8E C0				mov es,ax
+
+					;
+					; 1 - Load GDT
+					; 2 - Load IDT
+					; 3 - Activate protected mode
+					; 4 - Jmp to protected code segment
+					; 5 - Load segment selectors
+					;
+
+					; 1
+					;xor eax,eax
+					;mov eax,cs
+					;shl eax,4
+					;add eax,offset Global_Descriptor_Table
+					;mov Global_Descriptor_Table_Descriptor.Base,eax
+					;mov ax,offset End_Global_Descriptor_Table
+					;sub ax,offset Global_Descriptor_Table
+					;mov Global_Descriptor_Table_Descriptor.Size1,ax
+ 7C06  66				db 66h
+ 7C07  2E: 0F 01 16 7CBD R		lgdt Global_Descriptor_Table_Descriptor
+					; 2
+ 7C0D				      again3:
+ 7C0D  B4 00				mov ah,0
+ 7C0F  B2 00				mov dl,0
+ 7C11  CD 13				int 13h
+ 7C13  B8 2000				mov ax,02000h
+ 7C16  8E C0				mov es,ax
+ 7C18  BB 0000				mov bx,0
+ 7C1B  B8 0205				mov ax,0205h
+ 7C1E  B5 00				mov ch,0
+ 7C20  B1 02				mov cl,2
+ 7C22  B6 00				mov dh,0
+ 7C24  B2 00				mov dl,0
+ 7C26  CD 13				int 13h
+ 7C28  80 FC 00				cmp ah,0
+ 7C2B  75 E0				jnz again3
+ 7C2D  66				db 66h
+ 7C2E  2E: 0F 01 1E 7CC3 R		lidt Interrupt_Descriptor_Table_Descriptor
+					; 3
+ 7C34  B8 0002				mov ax,2
+ 7C37  8E D8				mov ds,ax
+ 7C39  8E E0				mov fs,ax
+ 7C3B  8E E8				mov gs,ax
+ 7C3D  B8 0003				mov ax,3
+ 7C40  8E D0				mov ss,ax
+ 7C42  B8 0004				mov ax,4
+ 7C45  8E C0				mov es,ax
+ 7C47  FA				cli
+ 7C48  66| B8 00000001			mov eax,1
+ 7C4E  0F 22 C0				mov cr0,eax
+					; 4
+ 7C51  66				db 66h
+ 7C52  EA				db 0eah
+ 7C53  ---- 7C59 R			dd Entry_Point
+					;dw Code_0_Selector
+ 7C57  0008				dw 0000000000001000b
+					; 5
+ 7C59				      Entry_Point: ;*****************Now in protected mode*******************
+					;mov ax,Data_0_Selector
+ 7C59  B8 0010				mov ax,0000000000010000b
+ 7C5C  8E D8				mov ds,ax
+ 7C5E  8E E0				mov fs,ax
+ 7C60  8E E8				mov gs,ax
+					;mov ax,Stack_0_Selector
+ 7C62  B8 0018				mov ax,0000000000011000b
+ 7C65  8E D0				mov ss,ax
+					;mov ax,Vga_Text_Selector
+ 7C67  B8 0020				mov ax,0000000000100000b
+ 7C6A  8E C0				mov es,ax
+					;sti
+ 7C6C  66| BF 00000000			mov edi,0
+ 7C72  B0 41				mov al,65
+ 7C74  66| B9 000000FF			mov ecx,0ffh
+ 7C7A  F3/ AA				rep stosb
+ 7C7C				      stay:
+					;jmp stay
+ 7C7C  EA				db 0eah
+ 7C7D  0000				dw 0
+ 7C7F  7C7C R				dw stay
+
+					;--------------------------------------------------------------------
+					; Data
+					;--------------------------------------------------------------------
+ 0006					Table_Descriptor struc
+ 0000  0000					Size1		dw 0
+ 0002  00000000					Base		dd 0
+					Table_Descriptor ends
+
+ 0008					Segment_Descriptor struc
+ 0000  0000					Size_0_15	dw 0
+ 0002  0000					Base_0_15	dw 0
+ 0004  00					Base_16_23	db 0
+ 0005  00					Type_1		db 0
+ 0006  00					Type_2		db 0
+ 0007  00					Base_24_31	db 0
+					Segment_Descriptor ends
+
+ 7C81					Global_Descriptor_Table:
+ 7C81 0000 0000 00 00 00			Entry_0 	Segment_Descriptor <>
+       00
+ 7C89 FFFF 0000 00 9E 50			Code_0		Segment_Descriptor  \
+       00
+							<0ffffh,,,10011110b,01010000b,>
+ 7C91 FFFF 0000 00 92 10			Data_0		Segment_Descriptor  \
+       00
+							<0ffffh,,,10010010b,00010000b,>
+ 7C99 FFFF 0000 0E 92 50			Stack_0 	Segment_Descriptor  \
+       00
+							<0ffffh,,0eh,10010010b,01010000b,>
+ 7CA1 FFFF 0000 0A 92 10			Vga_Text	Segment_Descriptor  \
+       00
+							<0ffffh,,0ah,10010010b,00010000b,>
+ 7CA9 FFFF 8000 0B 92 10			Vga_Graphic	Segment_Descriptor  \
+       00
+							<0ffffh,8000h,0bh,10010010b,00010000b,>
+ 7CB1					End_Global_Descriptor_Table:
+
+ 0002					Segment_Selector struc
+ 0000  0000					Index		dw 0
+					Segment_Selector ends
+
+ 7CB1 0000				Entry_0_Selector	Segment_Selector <>
+ 7CB3 0001				Code_0_Selector 	Segment_Selector <1>
+ 7CB5 0002				Data_0_Selector 	Segment_Selector <2>
+ 7CB7 0003				Stack_0_Selector	Segment_Selector <3>
+ 7CB9 0004				Vga_Text_Selector	Segment_Selector <4>
+ 7CBB 0005				Vga_Graphic_Selector	Segment_Selector <5>
+
+ 0008					Interrupt_Gate_Descriptor struc
+ 0000  7CC9 R					Offset_0_15	dw	offset Interrupt_Handler
+ 0002  0001					Selectorx	dw	1
+ 0004  00					Reserved	db	0
+ 0005  8E					Options 	db	10001110b
+ 0006  0000					Offset_16_31	dw	0
+					Interrupt_Gate_Descriptor ends
+
+ 7CBD 0030 00007C81			Global_Descriptor_Table_Descriptor	Table_Descriptor <48,7c81h>
+ 7CC3 0800 00020000			Interrupt_Descriptor_Table_Descriptor	Table_Descriptor <2048,020000h>
+ 7CC9				      Interrupt_Handler:
+ 7CC9  CF				iret
+					;********************************************************************
+					;********************************************************************
+ 7CCA				      endsector_1:
+ 7CCA				      sector_2_6:
+					;********************************************************************
+					;********************************************************************
+ 7CCA					Start_Interrupt_Descriptor_Table:
+ 7CCA 7CC9 R 0001 00 8E				Int_0	Interrupt_Gate_Descriptor <>
+       0000
+ 7CD2 7CC9 R 0001 00 8E				Int_1	Interrupt_Gate_Descriptor <>
+       0000
+ 7CDA 7CC9 R 0001 00 8E				Int_2	Interrupt_Gate_Descriptor <>
+       0000
+ 7CE2 7CC9 R 0001 00 8E				Int_3	Interrupt_Gate_Descriptor <>
+       0000
+ 7CEA 7CC9 R 0001 00 8E				Int_4	Interrupt_Gate_Descriptor <>
+       0000
+ 7CF2 7CC9 R 0001 00 8E				Int_5	Interrupt_Gate_Descriptor <>
+       0000
+ 7CFA 7CC9 R 0001 00 8E				Int_6	Interrupt_Gate_Descriptor <>
+       0000
+ 7D02 7CC9 R 0001 00 8E				Int_7	Interrupt_Gate_Descriptor <>
+       0000
+ 7D0A 7CC9 R 0001 00 8E				Int_8	Interrupt_Gate_Descriptor <>
+       0000
+ 7D12 7CC9 R 0001 00 8E				Int_9	Interrupt_Gate_Descriptor <>
+       0000
+ 7D1A 7CC9 R 0001 00 8E				Int_10	Interrupt_Gate_Descriptor <>
+       0000
+ 7D22 7CC9 R 0001 00 8E				Int_11	Interrupt_Gate_Descriptor <>
+       0000
+ 7D2A 7CC9 R 0001 00 8E				Int_12	Interrupt_Gate_Descriptor <>
+       0000
+ 7D32 7CC9 R 0001 00 8E				Int_13	Interrupt_Gate_Descriptor <>
+       0000
+ 7D3A 7CC9 R 0001 00 8E				Int_14	Interrupt_Gate_Descriptor <>
+       0000
+ 7D42 7CC9 R 0001 00 8E				Int_15	Interrupt_Gate_Descriptor <>
+       0000
+ 7D4A 7CC9 R 0001 00 8E				Int_16	Interrupt_Gate_Descriptor <>
+       0000
+ 7D52 7CC9 R 0001 00 8E				Int_17	Interrupt_Gate_Descriptor <>
+       0000
+ 7D5A 7CC9 R 0001 00 8E				Int_18	Interrupt_Gate_Descriptor <>
+       0000
+ 7D62 7CC9 R 0001 00 8E				Int_19	Interrupt_Gate_Descriptor <>
+       0000
+ 7D6A 7CC9 R 0001 00 8E				Int_20	Interrupt_Gate_Descriptor <>
+       0000
+ 7D72 7CC9 R 0001 00 8E				Int_21	Interrupt_Gate_Descriptor <>
+       0000
+ 7D7A 7CC9 R 0001 00 8E				Int_22	Interrupt_Gate_Descriptor <>
+       0000
+ 7D82 7CC9 R 0001 00 8E				Int_23	Interrupt_Gate_Descriptor <>
+       0000
+ 7D8A 7CC9 R 0001 00 8E				Int_24	Interrupt_Gate_Descriptor <>
+       0000
+ 7D92 7CC9 R 0001 00 8E				Int_25	Interrupt_Gate_Descriptor <>
+       0000
+ 7D9A 7CC9 R 0001 00 8E				Int_26	Interrupt_Gate_Descriptor <>
+       0000
+ 7DA2 7CC9 R 0001 00 8E				Int_27	Interrupt_Gate_Descriptor <>
+       0000
+ 7DAA 7CC9 R 0001 00 8E				Int_28	Interrupt_Gate_Descriptor <>
+       0000
+ 7DB2 7CC9 R 0001 00 8E				Int_29	Interrupt_Gate_Descriptor <>
+       0000
+ 7DBA 7CC9 R 0001 00 8E				Int_30	Interrupt_Gate_Descriptor <>
+       0000
+ 7DC2 7CC9 R 0001 00 8E				Int_31	Interrupt_Gate_Descriptor <>
+       0000
+ 7DCA 7CC9 R 0001 00 8E				Int_32	Interrupt_Gate_Descriptor <>
+       0000
+ 7DD2 7CC9 R 0001 00 8E				Int_33	Interrupt_Gate_Descriptor <>
+       0000
+ 7DDA 7CC9 R 0001 00 8E				Int_34	Interrupt_Gate_Descriptor <>
+       0000
+ 7DE2 7CC9 R 0001 00 8E				Int_35	Interrupt_Gate_Descriptor <>
+       0000
+ 7DEA 7CC9 R 0001 00 8E				Int_36	Interrupt_Gate_Descriptor <>
+       0000
+ 7DF2 7CC9 R 0001 00 8E				Int_37	Interrupt_Gate_Descriptor <>
+       0000
+ 7DFA 7CC9 R 0001 00 8E				Int_38	Interrupt_Gate_Descriptor <>
+       0000
+ 7E02 7CC9 R 0001 00 8E				Int_39	Interrupt_Gate_Descriptor <>
+       0000
+ 7E0A 7CC9 R 0001 00 8E				Int_40	Interrupt_Gate_Descriptor <>
+       0000
+ 7E12 7CC9 R 0001 00 8E				Int_41	Interrupt_Gate_Descriptor <>
+       0000
+ 7E1A 7CC9 R 0001 00 8E				Int_42	Interrupt_Gate_Descriptor <>
+       0000
+ 7E22 7CC9 R 0001 00 8E				Int_43	Interrupt_Gate_Descriptor <>
+       0000
+ 7E2A 7CC9 R 0001 00 8E				Int_44	Interrupt_Gate_Descriptor <>
+       0000
+ 7E32 7CC9 R 0001 00 8E				Int_45	Interrupt_Gate_Descriptor <>
+       0000
+ 7E3A 7CC9 R 0001 00 8E				Int_46	Interrupt_Gate_Descriptor <>
+       0000
+ 7E42 7CC9 R 0001 00 8E				Int_47	Interrupt_Gate_Descriptor <>
+       0000
+ 7E4A 7CC9 R 0001 00 8E				Int_48	Interrupt_Gate_Descriptor <>
+       0000
+ 7E52 7CC9 R 0001 00 8E				Int_49	Interrupt_Gate_Descriptor <>
+       0000
+ 7E5A 7CC9 R 0001 00 8E				Int_50	Interrupt_Gate_Descriptor <>
+       0000
+ 7E62 7CC9 R 0001 00 8E				Int_51	Interrupt_Gate_Descriptor <>
+       0000
+ 7E6A 7CC9 R 0001 00 8E				Int_52	Interrupt_Gate_Descriptor <>
+       0000
+ 7E72 7CC9 R 0001 00 8E				Int_53	Interrupt_Gate_Descriptor <>
+       0000
+ 7E7A 7CC9 R 0001 00 8E				Int_54	Interrupt_Gate_Descriptor <>
+       0000
+ 7E82 7CC9 R 0001 00 8E				Int_55	Interrupt_Gate_Descriptor <>
+       0000
+ 7E8A 7CC9 R 0001 00 8E				Int_56	Interrupt_Gate_Descriptor <>
+       0000
+ 7E92 7CC9 R 0001 00 8E				Int_57	Interrupt_Gate_Descriptor <>
+       0000
+ 7E9A 7CC9 R 0001 00 8E				Int_58	Interrupt_Gate_Descriptor <>
+       0000
+ 7EA2 7CC9 R 0001 00 8E				Int_59	Interrupt_Gate_Descriptor <>
+       0000
+ 7EAA 7CC9 R 0001 00 8E				Int_60	Interrupt_Gate_Descriptor <>
+       0000
+ 7EB2 7CC9 R 0001 00 8E				Int_61	Interrupt_Gate_Descriptor <>
+       0000
+ 7EBA 7CC9 R 0001 00 8E				Int_62	Interrupt_Gate_Descriptor <>
+       0000
+ 7EC2 7CC9 R 0001 00 8E				Int_63	Interrupt_Gate_Descriptor <>
+       0000
+ 7ECA 7CC9 R 0001 00 8E				Int_64	Interrupt_Gate_Descriptor <>
+       0000
+ 7ED2 7CC9 R 0001 00 8E				Int_65	Interrupt_Gate_Descriptor <>
+       0000
+ 7EDA 7CC9 R 0001 00 8E				Int_66	Interrupt_Gate_Descriptor <>
+       0000
+ 7EE2 7CC9 R 0001 00 8E				Int_67	Interrupt_Gate_Descriptor <>
+       0000
+ 7EEA 7CC9 R 0001 00 8E				Int_68	Interrupt_Gate_Descriptor <>
+       0000
+ 7EF2 7CC9 R 0001 00 8E				Int_69	Interrupt_Gate_Descriptor <>
+       0000
+ 7EFA 7CC9 R 0001 00 8E				Int_70	Interrupt_Gate_Descriptor <>
+       0000
+ 7F02 7CC9 R 0001 00 8E				Int_71	Interrupt_Gate_Descriptor <>
+       0000
+ 7F0A 7CC9 R 0001 00 8E				Int_72	Interrupt_Gate_Descriptor <>
+       0000
+ 7F12 7CC9 R 0001 00 8E				Int_73	Interrupt_Gate_Descriptor <>
+       0000
+ 7F1A 7CC9 R 0001 00 8E				Int_74	Interrupt_Gate_Descriptor <>
+       0000
+ 7F22 7CC9 R 0001 00 8E				Int_75	Interrupt_Gate_Descriptor <>
+       0000
+ 7F2A 7CC9 R 0001 00 8E				Int_76	Interrupt_Gate_Descriptor <>
+       0000
+ 7F32 7CC9 R 0001 00 8E				Int_77	Interrupt_Gate_Descriptor <>
+       0000
+ 7F3A 7CC9 R 0001 00 8E				Int_78	Interrupt_Gate_Descriptor <>
+       0000
+ 7F42 7CC9 R 0001 00 8E				Int_79	Interrupt_Gate_Descriptor <>
+       0000
+ 7F4A 7CC9 R 0001 00 8E				Int_80	Interrupt_Gate_Descriptor <>
+       0000
+ 7F52 7CC9 R 0001 00 8E				Int_81	Interrupt_Gate_Descriptor <>
+       0000
+ 7F5A 7CC9 R 0001 00 8E				Int_82	Interrupt_Gate_Descriptor <>
+       0000
+ 7F62 7CC9 R 0001 00 8E				Int_83	Interrupt_Gate_Descriptor <>
+       0000
+ 7F6A 7CC9 R 0001 00 8E				Int_84	Interrupt_Gate_Descriptor <>
+       0000
+ 7F72 7CC9 R 0001 00 8E				Int_85	Interrupt_Gate_Descriptor <>
+       0000
+ 7F7A 7CC9 R 0001 00 8E				Int_86	Interrupt_Gate_Descriptor <>
+       0000
+ 7F82 7CC9 R 0001 00 8E				Int_87	Interrupt_Gate_Descriptor <>
+       0000
+ 7F8A 7CC9 R 0001 00 8E				Int_88	Interrupt_Gate_Descriptor <>
+       0000
+ 7F92 7CC9 R 0001 00 8E				Int_89	Interrupt_Gate_Descriptor <>
+       0000
+ 7F9A 7CC9 R 0001 00 8E				Int_90	Interrupt_Gate_Descriptor <>
+       0000
+ 7FA2 7CC9 R 0001 00 8E				Int_91	Interrupt_Gate_Descriptor <>
+       0000
+ 7FAA 7CC9 R 0001 00 8E				Int_92	Interrupt_Gate_Descriptor <>
+       0000
+ 7FB2 7CC9 R 0001 00 8E				Int_93	Interrupt_Gate_Descriptor <>
+       0000
+ 7FBA 7CC9 R 0001 00 8E				Int_94	Interrupt_Gate_Descriptor <>
+       0000
+ 7FC2 7CC9 R 0001 00 8E				Int_95	Interrupt_Gate_Descriptor <>
+       0000
+ 7FCA 7CC9 R 0001 00 8E				Int_96	Interrupt_Gate_Descriptor <>
+       0000
+ 7FD2 7CC9 R 0001 00 8E				Int_97	Interrupt_Gate_Descriptor <>
+       0000
+ 7FDA 7CC9 R 0001 00 8E				Int_98	Interrupt_Gate_Descriptor <>
+       0000
+ 7FE2 7CC9 R 0001 00 8E				Int_99	Interrupt_Gate_Descriptor <>
+       0000
+ 7FEA 7CC9 R 0001 00 8E				Int_100	Interrupt_Gate_Descriptor <>
+       0000
+ 7FF2 7CC9 R 0001 00 8E				Int_101	Interrupt_Gate_Descriptor <>
+       0000
+ 7FFA 7CC9 R 0001 00 8E				Int_102	Interrupt_Gate_Descriptor <>
+       0000
+ 8002 7CC9 R 0001 00 8E				Int_103	Interrupt_Gate_Descriptor <>
+       0000
+ 800A 7CC9 R 0001 00 8E				Int_104	Interrupt_Gate_Descriptor <>
+       0000
+ 8012 7CC9 R 0001 00 8E				Int_105	Interrupt_Gate_Descriptor <>
+       0000
+ 801A 7CC9 R 0001 00 8E				Int_106	Interrupt_Gate_Descriptor <>
+       0000
+ 8022 7CC9 R 0001 00 8E				Int_107	Interrupt_Gate_Descriptor <>
+       0000
+ 802A 7CC9 R 0001 00 8E				Int_108	Interrupt_Gate_Descriptor <>
+       0000
+ 8032 7CC9 R 0001 00 8E				Int_109	Interrupt_Gate_Descriptor <>
+       0000
+ 803A 7CC9 R 0001 00 8E				Int_110	Interrupt_Gate_Descriptor <>
+       0000
+ 8042 7CC9 R 0001 00 8E				Int_111	Interrupt_Gate_Descriptor <>
+       0000
+ 804A 7CC9 R 0001 00 8E				Int_112	Interrupt_Gate_Descriptor <>
+       0000
+ 8052 7CC9 R 0001 00 8E				Int_113	Interrupt_Gate_Descriptor <>
+       0000
+ 805A 7CC9 R 0001 00 8E				Int_114	Interrupt_Gate_Descriptor <>
+       0000
+ 8062 7CC9 R 0001 00 8E				Int_115	Interrupt_Gate_Descriptor <>
+       0000
+ 806A 7CC9 R 0001 00 8E				Int_116	Interrupt_Gate_Descriptor <>
+       0000
+ 8072 7CC9 R 0001 00 8E				Int_117	Interrupt_Gate_Descriptor <>
+       0000
+ 807A 7CC9 R 0001 00 8E				Int_118	Interrupt_Gate_Descriptor <>
+       0000
+ 8082 7CC9 R 0001 00 8E				Int_119	Interrupt_Gate_Descriptor <>
+       0000
+ 808A 7CC9 R 0001 00 8E				Int_120	Interrupt_Gate_Descriptor <>
+       0000
+ 8092 7CC9 R 0001 00 8E				Int_121	Interrupt_Gate_Descriptor <>
+       0000
+ 809A 7CC9 R 0001 00 8E				Int_122	Interrupt_Gate_Descriptor <>
+       0000
+ 80A2 7CC9 R 0001 00 8E				Int_123	Interrupt_Gate_Descriptor <>
+       0000
+ 80AA 7CC9 R 0001 00 8E				Int_124	Interrupt_Gate_Descriptor <>
+       0000
+ 80B2 7CC9 R 0001 00 8E				Int_125	Interrupt_Gate_Descriptor <>
+       0000
+ 80BA 7CC9 R 0001 00 8E				Int_126	Interrupt_Gate_Descriptor <>
+       0000
+ 80C2 7CC9 R 0001 00 8E				Int_127	Interrupt_Gate_Descriptor <>
+       0000
+ 80CA 7CC9 R 0001 00 8E				Int_128	Interrupt_Gate_Descriptor <>
+       0000
+ 80D2 7CC9 R 0001 00 8E				Int_129	Interrupt_Gate_Descriptor <>
+       0000
+ 80DA 7CC9 R 0001 00 8E				Int_130	Interrupt_Gate_Descriptor <>
+       0000
+ 80E2 7CC9 R 0001 00 8E				Int_131	Interrupt_Gate_Descriptor <>
+       0000
+ 80EA 7CC9 R 0001 00 8E				Int_132	Interrupt_Gate_Descriptor <>
+       0000
+ 80F2 7CC9 R 0001 00 8E				Int_133	Interrupt_Gate_Descriptor <>
+       0000
+ 80FA 7CC9 R 0001 00 8E				Int_134	Interrupt_Gate_Descriptor <>
+       0000
+ 8102 7CC9 R 0001 00 8E				Int_135	Interrupt_Gate_Descriptor <>
+       0000
+ 810A 7CC9 R 0001 00 8E				Int_136	Interrupt_Gate_Descriptor <>
+       0000
+ 8112 7CC9 R 0001 00 8E				Int_137	Interrupt_Gate_Descriptor <>
+       0000
+ 811A 7CC9 R 0001 00 8E				Int_138	Interrupt_Gate_Descriptor <>
+       0000
+ 8122 7CC9 R 0001 00 8E				Int_139	Interrupt_Gate_Descriptor <>
+       0000
+ 812A 7CC9 R 0001 00 8E				Int_140	Interrupt_Gate_Descriptor <>
+       0000
+ 8132 7CC9 R 0001 00 8E				Int_141	Interrupt_Gate_Descriptor <>
+       0000
+ 813A 7CC9 R 0001 00 8E				Int_142	Interrupt_Gate_Descriptor <>
+       0000
+ 8142 7CC9 R 0001 00 8E				Int_143	Interrupt_Gate_Descriptor <>
+       0000
+ 814A 7CC9 R 0001 00 8E				Int_144	Interrupt_Gate_Descriptor <>
+       0000
+ 8152 7CC9 R 0001 00 8E				Int_145	Interrupt_Gate_Descriptor <>
+       0000
+ 815A 7CC9 R 0001 00 8E				Int_146	Interrupt_Gate_Descriptor <>
+       0000
+ 8162 7CC9 R 0001 00 8E				Int_147	Interrupt_Gate_Descriptor <>
+       0000
+ 816A 7CC9 R 0001 00 8E				Int_148	Interrupt_Gate_Descriptor <>
+       0000
+ 8172 7CC9 R 0001 00 8E				Int_149	Interrupt_Gate_Descriptor <>
+       0000
+ 817A 7CC9 R 0001 00 8E				Int_150	Interrupt_Gate_Descriptor <>
+       0000
+ 8182 7CC9 R 0001 00 8E				Int_151	Interrupt_Gate_Descriptor <>
+       0000
+ 818A 7CC9 R 0001 00 8E				Int_152	Interrupt_Gate_Descriptor <>
+       0000
+ 8192 7CC9 R 0001 00 8E				Int_153	Interrupt_Gate_Descriptor <>
+       0000
+ 819A 7CC9 R 0001 00 8E				Int_154	Interrupt_Gate_Descriptor <>
+       0000
+ 81A2 7CC9 R 0001 00 8E				Int_155	Interrupt_Gate_Descriptor <>
+       0000
+ 81AA 7CC9 R 0001 00 8E				Int_156	Interrupt_Gate_Descriptor <>
+       0000
+ 81B2 7CC9 R 0001 00 8E				Int_157	Interrupt_Gate_Descriptor <>
+       0000
+ 81BA 7CC9 R 0001 00 8E				Int_158	Interrupt_Gate_Descriptor <>
+       0000
+ 81C2 7CC9 R 0001 00 8E				Int_159	Interrupt_Gate_Descriptor <>
+       0000
+ 81CA 7CC9 R 0001 00 8E				Int_160	Interrupt_Gate_Descriptor <>
+       0000
+ 81D2 7CC9 R 0001 00 8E				Int_161	Interrupt_Gate_Descriptor <>
+       0000
+ 81DA 7CC9 R 0001 00 8E				Int_162	Interrupt_Gate_Descriptor <>
+       0000
+ 81E2 7CC9 R 0001 00 8E				Int_163	Interrupt_Gate_Descriptor <>
+       0000
+ 81EA 7CC9 R 0001 00 8E				Int_164	Interrupt_Gate_Descriptor <>
+       0000
+ 81F2 7CC9 R 0001 00 8E				Int_165	Interrupt_Gate_Descriptor <>
+       0000
+ 81FA 7CC9 R 0001 00 8E				Int_166	Interrupt_Gate_Descriptor <>
+       0000
+ 8202 7CC9 R 0001 00 8E				Int_167	Interrupt_Gate_Descriptor <>
+       0000
+ 820A 7CC9 R 0001 00 8E				Int_168	Interrupt_Gate_Descriptor <>
+       0000
+ 8212 7CC9 R 0001 00 8E				Int_169	Interrupt_Gate_Descriptor <>
+       0000
+ 821A 7CC9 R 0001 00 8E				Int_170	Interrupt_Gate_Descriptor <>
+       0000
+ 8222 7CC9 R 0001 00 8E				Int_171	Interrupt_Gate_Descriptor <>
+       0000
+ 822A 7CC9 R 0001 00 8E				Int_172	Interrupt_Gate_Descriptor <>
+       0000
+ 8232 7CC9 R 0001 00 8E				Int_173	Interrupt_Gate_Descriptor <>
+       0000
+ 823A 7CC9 R 0001 00 8E				Int_174	Interrupt_Gate_Descriptor <>
+       0000
+ 8242 7CC9 R 0001 00 8E				Int_175	Interrupt_Gate_Descriptor <>
+       0000
+ 824A 7CC9 R 0001 00 8E				Int_176	Interrupt_Gate_Descriptor <>
+       0000
+ 8252 7CC9 R 0001 00 8E				Int_177	Interrupt_Gate_Descriptor <>
+       0000
+ 825A 7CC9 R 0001 00 8E				Int_178	Interrupt_Gate_Descriptor <>
+       0000
+ 8262 7CC9 R 0001 00 8E				Int_179	Interrupt_Gate_Descriptor <>
+       0000
+ 826A 7CC9 R 0001 00 8E				Int_180	Interrupt_Gate_Descriptor <>
+       0000
+ 8272 7CC9 R 0001 00 8E				Int_181	Interrupt_Gate_Descriptor <>
+       0000
+ 827A 7CC9 R 0001 00 8E				Int_182	Interrupt_Gate_Descriptor <>
+       0000
+ 8282 7CC9 R 0001 00 8E				Int_183	Interrupt_Gate_Descriptor <>
+       0000
+ 828A 7CC9 R 0001 00 8E				Int_184	Interrupt_Gate_Descriptor <>
+       0000
+ 8292 7CC9 R 0001 00 8E				Int_185	Interrupt_Gate_Descriptor <>
+       0000
+ 829A 7CC9 R 0001 00 8E				Int_186	Interrupt_Gate_Descriptor <>
+       0000
+ 82A2 7CC9 R 0001 00 8E				Int_187	Interrupt_Gate_Descriptor <>
+       0000
+ 82AA 7CC9 R 0001 00 8E				Int_188	Interrupt_Gate_Descriptor <>
+       0000
+ 82B2 7CC9 R 0001 00 8E				Int_189	Interrupt_Gate_Descriptor <>
+       0000
+ 82BA 7CC9 R 0001 00 8E				Int_190	Interrupt_Gate_Descriptor <>
+       0000
+ 82C2 7CC9 R 0001 00 8E				Int_191	Interrupt_Gate_Descriptor <>
+       0000
+ 82CA 7CC9 R 0001 00 8E				Int_192	Interrupt_Gate_Descriptor <>
+       0000
+ 82D2 7CC9 R 0001 00 8E				Int_193	Interrupt_Gate_Descriptor <>
+       0000
+ 82DA 7CC9 R 0001 00 8E				Int_194	Interrupt_Gate_Descriptor <>
+       0000
+ 82E2 7CC9 R 0001 00 8E				Int_195	Interrupt_Gate_Descriptor <>
+       0000
+ 82EA 7CC9 R 0001 00 8E				Int_196	Interrupt_Gate_Descriptor <>
+       0000
+ 82F2 7CC9 R 0001 00 8E				Int_197	Interrupt_Gate_Descriptor <>
+       0000
+ 82FA 7CC9 R 0001 00 8E				Int_198	Interrupt_Gate_Descriptor <>
+       0000
+ 8302 7CC9 R 0001 00 8E				Int_199	Interrupt_Gate_Descriptor <>
+       0000
+ 830A 7CC9 R 0001 00 8E				Int_200	Interrupt_Gate_Descriptor <>
+       0000
+ 8312 7CC9 R 0001 00 8E				Int_201	Interrupt_Gate_Descriptor <>
+       0000
+ 831A 7CC9 R 0001 00 8E				Int_202	Interrupt_Gate_Descriptor <>
+       0000
+ 8322 7CC9 R 0001 00 8E				Int_203	Interrupt_Gate_Descriptor <>
+       0000
+ 832A 7CC9 R 0001 00 8E				Int_204	Interrupt_Gate_Descriptor <>
+       0000
+ 8332 7CC9 R 0001 00 8E				Int_205	Interrupt_Gate_Descriptor <>
+       0000
+ 833A 7CC9 R 0001 00 8E				Int_206	Interrupt_Gate_Descriptor <>
+       0000
+ 8342 7CC9 R 0001 00 8E				Int_207	Interrupt_Gate_Descriptor <>
+       0000
+ 834A 7CC9 R 0001 00 8E				Int_208	Interrupt_Gate_Descriptor <>
+       0000
+ 8352 7CC9 R 0001 00 8E				Int_209	Interrupt_Gate_Descriptor <>
+       0000
+ 835A 7CC9 R 0001 00 8E				Int_210	Interrupt_Gate_Descriptor <>
+       0000
+ 8362 7CC9 R 0001 00 8E				Int_211	Interrupt_Gate_Descriptor <>
+       0000
+ 836A 7CC9 R 0001 00 8E				Int_212	Interrupt_Gate_Descriptor <>
+       0000
+ 8372 7CC9 R 0001 00 8E				Int_213	Interrupt_Gate_Descriptor <>
+       0000
+ 837A 7CC9 R 0001 00 8E				Int_214	Interrupt_Gate_Descriptor <>
+       0000
+ 8382 7CC9 R 0001 00 8E				Int_215	Interrupt_Gate_Descriptor <>
+       0000
+ 838A 7CC9 R 0001 00 8E				Int_216	Interrupt_Gate_Descriptor <>
+       0000
+ 8392 7CC9 R 0001 00 8E				Int_217	Interrupt_Gate_Descriptor <>
+       0000
+ 839A 7CC9 R 0001 00 8E				Int_218	Interrupt_Gate_Descriptor <>
+       0000
+ 83A2 7CC9 R 0001 00 8E				Int_219	Interrupt_Gate_Descriptor <>
+       0000
+ 83AA 7CC9 R 0001 00 8E				Int_220	Interrupt_Gate_Descriptor <>
+       0000
+ 83B2 7CC9 R 0001 00 8E				Int_221	Interrupt_Gate_Descriptor <>
+       0000
+ 83BA 7CC9 R 0001 00 8E				Int_222	Interrupt_Gate_Descriptor <>
+       0000
+ 83C2 7CC9 R 0001 00 8E				Int_223	Interrupt_Gate_Descriptor <>
+       0000
+ 83CA 7CC9 R 0001 00 8E				Int_224	Interrupt_Gate_Descriptor <>
+       0000
+ 83D2 7CC9 R 0001 00 8E				Int_225	Interrupt_Gate_Descriptor <>
+       0000
+ 83DA 7CC9 R 0001 00 8E				Int_226	Interrupt_Gate_Descriptor <>
+       0000
+ 83E2 7CC9 R 0001 00 8E				Int_227	Interrupt_Gate_Descriptor <>
+       0000
+ 83EA 7CC9 R 0001 00 8E				Int_228	Interrupt_Gate_Descriptor <>
+       0000
+ 83F2 7CC9 R 0001 00 8E				Int_229	Interrupt_Gate_Descriptor <>
+       0000
+ 83FA 7CC9 R 0001 00 8E				Int_230	Interrupt_Gate_Descriptor <>
+       0000
+ 8402 7CC9 R 0001 00 8E				Int_231	Interrupt_Gate_Descriptor <>
+       0000
+ 840A 7CC9 R 0001 00 8E				Int_232	Interrupt_Gate_Descriptor <>
+       0000
+ 8412 7CC9 R 0001 00 8E				Int_233	Interrupt_Gate_Descriptor <>
+       0000
+ 841A 7CC9 R 0001 00 8E				Int_234	Interrupt_Gate_Descriptor <>
+       0000
+ 8422 7CC9 R 0001 00 8E				Int_235	Interrupt_Gate_Descriptor <>
+       0000
+ 842A 7CC9 R 0001 00 8E				Int_236	Interrupt_Gate_Descriptor <>
+       0000
+ 8432 7CC9 R 0001 00 8E				Int_237	Interrupt_Gate_Descriptor <>
+       0000
+ 843A 7CC9 R 0001 00 8E				Int_238	Interrupt_Gate_Descriptor <>
+       0000
+ 8442 7CC9 R 0001 00 8E				Int_239	Interrupt_Gate_Descriptor <>
+       0000
+ 844A 7CC9 R 0001 00 8E				Int_240	Interrupt_Gate_Descriptor <>
+       0000
+ 8452 7CC9 R 0001 00 8E				Int_241	Interrupt_Gate_Descriptor <>
+       0000
+ 845A 7CC9 R 0001 00 8E				Int_242	Interrupt_Gate_Descriptor <>
+       0000
+ 8462 7CC9 R 0001 00 8E				Int_243	Interrupt_Gate_Descriptor <>
+       0000
+ 846A 7CC9 R 0001 00 8E				Int_244	Interrupt_Gate_Descriptor <>
+       0000
+ 8472 7CC9 R 0001 00 8E				Int_245	Interrupt_Gate_Descriptor <>
+       0000
+ 847A 7CC9 R 0001 00 8E				Int_246	Interrupt_Gate_Descriptor <>
+       0000
+ 8482 7CC9 R 0001 00 8E				Int_247	Interrupt_Gate_Descriptor <>
+       0000
+ 848A 7CC9 R 0001 00 8E				Int_248	Interrupt_Gate_Descriptor <>
+       0000
+ 8492 7CC9 R 0001 00 8E				Int_249	Interrupt_Gate_Descriptor <>
+       0000
+ 849A 7CC9 R 0001 00 8E				Int_250	Interrupt_Gate_Descriptor <>
+       0000
+ 84A2 7CC9 R 0001 00 8E				Int_251 Interrupt_Gate_Descriptor <>
+       0000
+ 84AA 7CC9 R 0001 00 8E				Int_252	Interrupt_Gate_Descriptor <>
+       0000
+ 84B2 7CC9 R 0001 00 8E				Int_253	Interrupt_Gate_Descriptor <>
+       0000
+ 84BA 7CC9 R 0001 00 8E				Int_254	Interrupt_Gate_Descriptor <>
+       0000
+ 84C2 7CC9 R 0001 00 8E				Int_255	Interrupt_Gate_Descriptor <>
+       0000
+ 84CA					End_Interrupt_Descriptor_Table:
+					;********************************************************************
+					;********************************************************************
+ 84CA				      endsector_2_6:
+ 84CA				      skip:
+					;
+					; Copy CS:sector_1 to buffer01 (512 bytes)
+					;
+ 84CA  B8 ---- R			mov ax,@data
+ 84CD  8E D8				mov ds,ax
+ 84CF  1E				push ds
+ 84D0  8E C0				mov es,ax
+ 84D2  BF 0000 R			mov di,offset buffer01
+ 84D5  8C C8				mov ax,cs
+ 84D7  8E D8				mov ds,ax
+ 84D9  B9 7CCA R			mov cx,endsector_1
+ 84DC  81 E9 7C00 R			sub cx,sector_1
+ 84E0  BE 7C00 R			mov si,sector_1
+ 84E3  F3/ A4				rep movsb
+ 84E5  1F				pop ds
+					;
+					; Write buffer to file
+					;
+ 84E6				      again:
+ 84E6  FE 0E 0C21 R			dec count
+ 84EA  80 3E 0C21 R 00			cmp count,0
+ 84EF  74 24				jz error
+ 84F1  B4 00				mov ah,0
+ 84F3  B2 00				mov dl,0
+ 84F5  CD 13				int 13h
+ 84F7  B8 0301				mov ax,0301h
+ 84FA  B5 00				mov ch,0
+ 84FC  B1 01				mov cl,1
+ 84FE  B6 00				mov dh,0
+ 8500  B2 00				mov dl,0
+ 8502  BB 0000 R			mov bx,offset buffer01
+ 8505  CD 13				int 13h
+ 8507  80 FC 00				cmp ah,0
+ 850A  75 DA				jnz again
+ 850C  BA 0C1A R			mov dx,offset success
+ 850F  B4 09				mov ah,9
+ 8511  CD 21				int 21h
+ 8513  EB 07				jmp nextsectors
+ 8515				      error:
+					;
+					; Error handling
+					;
+ 8515  BA 0C00 R			mov dx,offset error1
+ 8518  B4 09				mov ah,9
+ 851A  CD 21				int 21h
+
+ 851C				      nextsectors:
+					;
+					; Copy CS:sector_2_6 to buffer (2048 bytes)
+					;
+ 851C  1E				push ds
+ 851D  B8 ---- R			mov ax,@data
+ 8520  8E C0				mov es,ax
+ 8522  BF 0200 R			mov di,offset buffer02
+ 8525  8C C8				mov ax,cs
+ 8527  8E D8				mov ds,ax
+ 8529  B9 84CA R			mov cx,endsector_2_6
+ 852C  81 E9 7CCA R			sub cx,sector_2_6
+ 8530  BE 7CCA R			mov si,sector_2_6
+ 8533  F3/ A4				rep movsb
+ 8535  1F				pop ds
+					;
+					; Write buffer to file
+					;
+ 8536  C6 06 0C21 R 04			mov count,4
+ 853B				      again2:
+ 853B  FE 0E 0C21 R			dec count
+ 853F  80 3E 0C21 R 00			cmp count,0
+ 8544  74 24				jz error2
+ 8546  B4 00				mov ah,0
+ 8548  B2 00				mov dl,0
+ 854A  CD 13				int 13h
+ 854C  B8 0305				mov ax,0305h
+ 854F  B5 00				mov ch,0
+ 8551  B1 02				mov cl,2
+ 8553  B6 00				mov dh,0
+ 8555  B2 00				mov dl,0
+ 8557  BB 0200 R			mov bx,offset buffer02
+ 855A  CD 13				int 13h
+ 855C  80 FC 00				cmp ah,0
+ 855F  75 DA				jnz again2
+ 8561  BA 0C1A R			mov dx,offset success
+ 8564  B4 09				mov ah,9
+ 8566  CD 21				int 21h
+ 8568  EB 07				jmp done
+ 856A				      error2:
+					;
+					; Error handling
+					;
+ 856A  BA 0C00 R			mov dx,offset error1
+ 856D  B4 09				mov ah,9
+ 856F  CD 21				int 21h
+
+ 8571				      done:
+					;
+					; Exit
+					;
+ 8571  B8 4C00				mov ax,4c00h
+ 8574  CD 21				int 21h
+
+				end start
+Microsoft (R) Macro Assembler Version 6.11		    01/12/00 20:06:48
+PROTEST.ASM						     Symbols 2 - 1
+
+
+
+
+Structures and Unions:
+
+                N a m e                  Size
+                                         Offset      Type
+
+Interrupt_Gate_Descriptor  . . .	 0008
+  Offset_0_15  . . . . . . . . .	 0000	     Word
+  Selectorx  . . . . . . . . . .	 0002	     Word
+  Reserved . . . . . . . . . . .	 0004	     Byte
+  Options  . . . . . . . . . . .	 0005	     Byte
+  Offset_16_31 . . . . . . . . .	 0006	     Word
+Segment_Descriptor . . . . . . .	 0008
+  Size_0_15  . . . . . . . . . .	 0000	     Word
+  Base_0_15  . . . . . . . . . .	 0002	     Word
+  Base_16_23 . . . . . . . . . .	 0004	     Byte
+  Type_1 . . . . . . . . . . . .	 0005	     Byte
+  Type_2 . . . . . . . . . . . .	 0006	     Byte
+  Base_24_31 . . . . . . . . . .	 0007	     Byte
+Segment_Selector . . . . . . . .	 0002
+  Index  . . . . . . . . . . . .	 0000	     Word
+Table_Descriptor . . . . . . . .	 0006
+  Size1  . . . . . . . . . . . .	 0000	     Word
+  Base . . . . . . . . . . . . .	 0002	     DWord
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 0C22	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 0100	  Para	  Stack	  'STACK'	 
+_TEXT  . . . . . . . . . . . . .	16 Bit	 8576	  Word	  Public  'CODE'	
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+Code_0_Selector  . . . . . . . .	Segment_Selector  7CB3	   _TEXT	
+Code_0 . . . . . . . . . . . . .	Segment_Descriptor  7C89     _TEXT	
+Data_0_Selector  . . . . . . . .	Segment_Selector  7CB5	   _TEXT	
+Data_0 . . . . . . . . . . . . .	Segment_Descriptor  7C91     _TEXT	
+End_Global_Descriptor_Table  . .	L Near	 7CB1	  _TEXT	
+End_Interrupt_Descriptor_Table .	L Near	 84CA	  _TEXT	
+Entry_0_Selector . . . . . . . .	Segment_Selector  7CB1	   _TEXT	
+Entry_0  . . . . . . . . . . . .	Segment_Descriptor  7C81     _TEXT	
+Entry_Point  . . . . . . . . . .	L Near	 7C59	  _TEXT	
+Global_Descriptor_Table_Descriptor .	Table_Descriptor  7CBD	   _TEXT	
+Global_Descriptor_Table  . . . .	L Near	 7C81	  _TEXT	
+Int_0  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CCA	    _TEXT	
+Int_100  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FEA	    _TEXT	
+Int_101  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FF2	    _TEXT	
+Int_102  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FFA	    _TEXT	
+Int_103  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8002	    _TEXT	
+Int_104  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  800A	    _TEXT	
+Int_105  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8012	    _TEXT	
+Int_106  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  801A	    _TEXT	
+Int_107  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8022	    _TEXT	
+Int_108  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  802A	    _TEXT	
+Int_109  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8032	    _TEXT	
+Int_10 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D1A	    _TEXT	
+Int_110  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  803A	    _TEXT	
+Int_111  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8042	    _TEXT	
+Int_112  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  804A	    _TEXT	
+Int_113  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8052	    _TEXT	
+Int_114  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  805A	    _TEXT	
+Int_115  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8062	    _TEXT	
+Int_116  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  806A	    _TEXT	
+Int_117  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8072	    _TEXT	
+Int_118  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  807A	    _TEXT	
+Int_119  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8082	    _TEXT	
+Int_11 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D22	    _TEXT	
+Int_120  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  808A	    _TEXT	
+Int_121  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8092	    _TEXT	
+Int_122  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  809A	    _TEXT	
+Int_123  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80A2	    _TEXT	
+Int_124  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80AA	    _TEXT	
+Int_125  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80B2	    _TEXT	
+Int_126  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80BA	    _TEXT	
+Int_127  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80C2	    _TEXT	
+Int_128  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80CA	    _TEXT	
+Int_129  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80D2	    _TEXT	
+Int_12 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D2A	    _TEXT	
+Int_130  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80DA	    _TEXT	
+Int_131  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80E2	    _TEXT	
+Int_132  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80EA	    _TEXT	
+Int_133  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80F2	    _TEXT	
+Int_134  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  80FA	    _TEXT	
+Int_135  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8102	    _TEXT	
+Int_136  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  810A	    _TEXT	
+Int_137  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8112	    _TEXT	
+Int_138  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  811A	    _TEXT	
+Int_139  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8122	    _TEXT	
+Int_13 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D32	    _TEXT	
+Int_140  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  812A	    _TEXT	
+Int_141  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8132	    _TEXT	
+Int_142  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  813A	    _TEXT	
+Int_143  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8142	    _TEXT	
+Int_144  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  814A	    _TEXT	
+Int_145  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8152	    _TEXT	
+Int_146  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  815A	    _TEXT	
+Int_147  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8162	    _TEXT	
+Int_148  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  816A	    _TEXT	
+Int_149  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8172	    _TEXT	
+Int_14 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D3A	    _TEXT	
+Int_150  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  817A	    _TEXT	
+Int_151  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8182	    _TEXT	
+Int_152  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  818A	    _TEXT	
+Int_153  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8192	    _TEXT	
+Int_154  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  819A	    _TEXT	
+Int_155  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81A2	    _TEXT	
+Int_156  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81AA	    _TEXT	
+Int_157  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81B2	    _TEXT	
+Int_158  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81BA	    _TEXT	
+Int_159  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81C2	    _TEXT	
+Int_15 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D42	    _TEXT	
+Int_160  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81CA	    _TEXT	
+Int_161  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81D2	    _TEXT	
+Int_162  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81DA	    _TEXT	
+Int_163  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81E2	    _TEXT	
+Int_164  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81EA	    _TEXT	
+Int_165  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81F2	    _TEXT	
+Int_166  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  81FA	    _TEXT	
+Int_167  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8202	    _TEXT	
+Int_168  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  820A	    _TEXT	
+Int_169  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8212	    _TEXT	
+Int_16 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D4A	    _TEXT	
+Int_170  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  821A	    _TEXT	
+Int_171  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8222	    _TEXT	
+Int_172  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  822A	    _TEXT	
+Int_173  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8232	    _TEXT	
+Int_174  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  823A	    _TEXT	
+Int_175  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8242	    _TEXT	
+Int_176  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  824A	    _TEXT	
+Int_177  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8252	    _TEXT	
+Int_178  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  825A	    _TEXT	
+Int_179  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8262	    _TEXT	
+Int_17 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D52	    _TEXT	
+Int_180  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  826A	    _TEXT	
+Int_181  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8272	    _TEXT	
+Int_182  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  827A	    _TEXT	
+Int_183  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8282	    _TEXT	
+Int_184  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  828A	    _TEXT	
+Int_185  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8292	    _TEXT	
+Int_186  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  829A	    _TEXT	
+Int_187  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82A2	    _TEXT	
+Int_188  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82AA	    _TEXT	
+Int_189  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82B2	    _TEXT	
+Int_18 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D5A	    _TEXT	
+Int_190  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82BA	    _TEXT	
+Int_191  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82C2	    _TEXT	
+Int_192  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82CA	    _TEXT	
+Int_193  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82D2	    _TEXT	
+Int_194  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82DA	    _TEXT	
+Int_195  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82E2	    _TEXT	
+Int_196  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82EA	    _TEXT	
+Int_197  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82F2	    _TEXT	
+Int_198  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  82FA	    _TEXT	
+Int_199  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8302	    _TEXT	
+Int_19 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D62	    _TEXT	
+Int_1  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CD2	    _TEXT	
+Int_200  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  830A	    _TEXT	
+Int_201  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8312	    _TEXT	
+Int_202  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  831A	    _TEXT	
+Int_203  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8322	    _TEXT	
+Int_204  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  832A	    _TEXT	
+Int_205  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8332	    _TEXT	
+Int_206  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  833A	    _TEXT	
+Int_207  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8342	    _TEXT	
+Int_208  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  834A	    _TEXT	
+Int_209  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8352	    _TEXT	
+Int_20 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D6A	    _TEXT	
+Int_210  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  835A	    _TEXT	
+Int_211  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8362	    _TEXT	
+Int_212  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  836A	    _TEXT	
+Int_213  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8372	    _TEXT	
+Int_214  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  837A	    _TEXT	
+Int_215  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8382	    _TEXT	
+Int_216  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  838A	    _TEXT	
+Int_217  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8392	    _TEXT	
+Int_218  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  839A	    _TEXT	
+Int_219  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83A2	    _TEXT	
+Int_21 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D72	    _TEXT	
+Int_220  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83AA	    _TEXT	
+Int_221  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83B2	    _TEXT	
+Int_222  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83BA	    _TEXT	
+Int_223  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83C2	    _TEXT	
+Int_224  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83CA	    _TEXT	
+Int_225  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83D2	    _TEXT	
+Int_226  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83DA	    _TEXT	
+Int_227  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83E2	    _TEXT	
+Int_228  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83EA	    _TEXT	
+Int_229  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83F2	    _TEXT	
+Int_22 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D7A	    _TEXT	
+Int_230  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  83FA	    _TEXT	
+Int_231  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8402	    _TEXT	
+Int_232  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  840A	    _TEXT	
+Int_233  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8412	    _TEXT	
+Int_234  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  841A	    _TEXT	
+Int_235  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8422	    _TEXT	
+Int_236  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  842A	    _TEXT	
+Int_237  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8432	    _TEXT	
+Int_238  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  843A	    _TEXT	
+Int_239  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8442	    _TEXT	
+Int_23 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D82	    _TEXT	
+Int_240  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  844A	    _TEXT	
+Int_241  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8452	    _TEXT	
+Int_242  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  845A	    _TEXT	
+Int_243  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8462	    _TEXT	
+Int_244  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  846A	    _TEXT	
+Int_245  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8472	    _TEXT	
+Int_246  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  847A	    _TEXT	
+Int_247  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8482	    _TEXT	
+Int_248  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  848A	    _TEXT	
+Int_249  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  8492	    _TEXT	
+Int_24 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D8A	    _TEXT	
+Int_250  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  849A	    _TEXT	
+Int_251  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  84A2	    _TEXT	
+Int_252  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  84AA	    _TEXT	
+Int_253  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  84B2	    _TEXT	
+Int_254  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  84BA	    _TEXT	
+Int_255  . . . . . . . . . . . .	Interrupt_Gate_Descriptor  84C2	    _TEXT	
+Int_25 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D92	    _TEXT	
+Int_26 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D9A	    _TEXT	
+Int_27 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DA2	    _TEXT	
+Int_28 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DAA	    _TEXT	
+Int_29 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DB2	    _TEXT	
+Int_2  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CDA	    _TEXT	
+Int_30 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DBA	    _TEXT	
+Int_31 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DC2	    _TEXT	
+Int_32 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DCA	    _TEXT	
+Int_33 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DD2	    _TEXT	
+Int_34 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DDA	    _TEXT	
+Int_35 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DE2	    _TEXT	
+Int_36 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DEA	    _TEXT	
+Int_37 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DF2	    _TEXT	
+Int_38 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7DFA	    _TEXT	
+Int_39 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E02	    _TEXT	
+Int_3  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CE2	    _TEXT	
+Int_40 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E0A	    _TEXT	
+Int_41 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E12	    _TEXT	
+Int_42 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E1A	    _TEXT	
+Int_43 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E22	    _TEXT	
+Int_44 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E2A	    _TEXT	
+Int_45 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E32	    _TEXT	
+Int_46 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E3A	    _TEXT	
+Int_47 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E42	    _TEXT	
+Int_48 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E4A	    _TEXT	
+Int_49 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E52	    _TEXT	
+Int_4  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CEA	    _TEXT	
+Int_50 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E5A	    _TEXT	
+Int_51 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E62	    _TEXT	
+Int_52 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E6A	    _TEXT	
+Int_53 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E72	    _TEXT	
+Int_54 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E7A	    _TEXT	
+Int_55 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E82	    _TEXT	
+Int_56 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E8A	    _TEXT	
+Int_57 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E92	    _TEXT	
+Int_58 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7E9A	    _TEXT	
+Int_59 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EA2	    _TEXT	
+Int_5  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CF2	    _TEXT	
+Int_60 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EAA	    _TEXT	
+Int_61 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EB2	    _TEXT	
+Int_62 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EBA	    _TEXT	
+Int_63 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EC2	    _TEXT	
+Int_64 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7ECA	    _TEXT	
+Int_65 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7ED2	    _TEXT	
+Int_66 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EDA	    _TEXT	
+Int_67 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EE2	    _TEXT	
+Int_68 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EEA	    _TEXT	
+Int_69 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EF2	    _TEXT	
+Int_6  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7CFA	    _TEXT	
+Int_70 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7EFA	    _TEXT	
+Int_71 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F02	    _TEXT	
+Int_72 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F0A	    _TEXT	
+Int_73 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F12	    _TEXT	
+Int_74 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F1A	    _TEXT	
+Int_75 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F22	    _TEXT	
+Int_76 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F2A	    _TEXT	
+Int_77 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F32	    _TEXT	
+Int_78 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F3A	    _TEXT	
+Int_79 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F42	    _TEXT	
+Int_7  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D02	    _TEXT	
+Int_80 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F4A	    _TEXT	
+Int_81 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F52	    _TEXT	
+Int_82 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F5A	    _TEXT	
+Int_83 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F62	    _TEXT	
+Int_84 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F6A	    _TEXT	
+Int_85 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F72	    _TEXT	
+Int_86 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F7A	    _TEXT	
+Int_87 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F82	    _TEXT	
+Int_88 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F8A	    _TEXT	
+Int_89 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F92	    _TEXT	
+Int_8  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D0A	    _TEXT	
+Int_90 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7F9A	    _TEXT	
+Int_91 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FA2	    _TEXT	
+Int_92 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FAA	    _TEXT	
+Int_93 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FB2	    _TEXT	
+Int_94 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FBA	    _TEXT	
+Int_95 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FC2	    _TEXT	
+Int_96 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FCA	    _TEXT	
+Int_97 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FD2	    _TEXT	
+Int_98 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FDA	    _TEXT	
+Int_99 . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7FE2	    _TEXT	
+Int_9  . . . . . . . . . . . . .	Interrupt_Gate_Descriptor  7D12	    _TEXT	
+Interrupt_Descriptor_Table_Descriptor 	Table_Descriptor  7CC3	   _TEXT	
+Interrupt_Handler  . . . . . . .	L Near	 7CC9	  _TEXT	
+Stack_0_Selector . . . . . . . .	Segment_Selector  7CB7	   _TEXT	
+Stack_0  . . . . . . . . . . . .	Segment_Descriptor  7C99     _TEXT	
+Start_Interrupt_Descriptor_Table .	L Near	 7CCA	  _TEXT	
+Vga_Graphic_Selector . . . . . .	Segment_Selector  7CBB	   _TEXT	
+Vga_Graphic  . . . . . . . . . .	Segment_Descriptor  7CA9     _TEXT	
+Vga_Text_Selector  . . . . . . .	Segment_Selector  7CB9	   _TEXT	
+Vga_Text . . . . . . . . . . . .	Segment_Descriptor  7CA1     _TEXT	
+again2 . . . . . . . . . . . . .	L Near	 853B	  _TEXT	
+again3 . . . . . . . . . . . . .	L Near	 7C0D	  _TEXT	
+again  . . . . . . . . . . . . .	L Near	 84E6	  _TEXT	
+buffer01 . . . . . . . . . . . .	Byte	 0000	  _DATA	
+buffer02 . . . . . . . . . . . .	Byte	 0200	  _DATA	
+count  . . . . . . . . . . . . .	Byte	 0C21	  _DATA	
+done . . . . . . . . . . . . . .	L Near	 8571	  _TEXT	
+endsector_1  . . . . . . . . . .	L Near	 7CCA	  _TEXT	
+endsector_2_6  . . . . . . . . .	L Near	 84CA	  _TEXT	
+error1 . . . . . . . . . . . . .	Byte	 0C00	  _DATA	
+error2 . . . . . . . . . . . . .	L Near	 856A	  _TEXT	
+error  . . . . . . . . . . . . .	L Near	 8515	  _TEXT	
+nextsectors  . . . . . . . . . .	L Near	 851C	  _TEXT	
+sector_1 . . . . . . . . . . . .	L Near	 7C00	  _TEXT	
+sector_2_6 . . . . . . . . . . .	L Near	 7CCA	  _TEXT	
+skip . . . . . . . . . . . . . .	L Near	 84CA	  _TEXT	
+start  . . . . . . . . . . . . .	L Near	 7BFD	  _TEXT	
+stay . . . . . . . . . . . . . .	L Near	 7C7C	  _TEXT	
+success  . . . . . . . . . . . .	Byte	 0C1A	  _DATA	
+
+	   0 Warnings
+	   0 Errors

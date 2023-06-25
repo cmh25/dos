@@ -1,0 +1,85 @@
+# Microsoft Visual C++ generated build script - Do not modify
+
+PROJ = CMH01
+DEBUG = 1
+PROGTYPE = 6
+CALLER = 
+ARGS = 
+DLLS = 
+D_RCDEFINES = -d_DEBUG
+R_RCDEFINES = -dNDEBUG
+ORIGIN = MSVC
+ORIGIN_VER = 1.00
+PROJPATH = Z:\OLDPROG\PROG~A5A\DOSPROG\CMH01\
+USEMFC = 0
+CC = cl
+CPP = cl
+CXX = cl
+CCREATEPCHFLAG = 
+CPPCREATEPCHFLAG = 
+CUSEPCHFLAG = 
+CPPUSEPCHFLAG = 
+FIRSTC =             
+FIRSTCPP = CMH01.CPP   
+RC = rc
+CFLAGS_D_DEXE = /nologo /G2 /FPi87 /W3 /Zi /AL /Od /D "_DEBUG" /D "_DOS" /FR /Fd"CMH01.PDB"
+CFLAGS_R_DEXE = /nologo /Gs /G3 /FPi87 /W3 /AL /Ox /D "NDEBUG" /D "_DOS" /FR 
+LFLAGS_D_DEXE = /NOLOGO /NOI /STACK:5120 /ONERROR:NOEXE /CO 
+LFLAGS_R_DEXE = /NOLOGO /NOI /STACK:5120 /ONERROR:NOEXE 
+LIBS_D_DEXE = oldnames llibc7 
+LIBS_R_DEXE = oldnames llibc7 
+RCFLAGS = /nologo
+RESFLAGS = /nologo
+RUNFLAGS = 
+OBJS_EXT = 
+LIBS_EXT = CMHGRFX.LIB 
+!if "$(DEBUG)" == "1"
+CFLAGS = $(CFLAGS_D_DEXE)
+LFLAGS = $(LFLAGS_D_DEXE)
+LIBS = $(LIBS_D_DEXE)
+MAPFILE = nul
+RCDEFINES = $(D_RCDEFINES)
+!else
+CFLAGS = $(CFLAGS_R_DEXE)
+LFLAGS = $(LFLAGS_R_DEXE)
+LIBS = $(LIBS_R_DEXE)
+MAPFILE = nul
+RCDEFINES = $(R_RCDEFINES)
+!endif
+!if [if exist MSVC.BND del MSVC.BND]
+!endif
+SBRS = CMH01.SBR
+
+
+CMHGRFX_DEP = 
+
+CMH01_DEP = z:\oldprog\prog~a5a\dosprog\cmh01\cmhgrfx.h
+
+
+all:	$(PROJ).EXE $(PROJ).BSC
+
+CMH01.OBJ:	CMH01.CPP $(CMH01_DEP)
+	$(CPP) $(CFLAGS) $(CPPCREATEPCHFLAG) /c CMH01.CPP
+
+$(PROJ).EXE::	CMH01.OBJ $(OBJS_EXT) $(DEFFILE)
+	echo >NUL @<<$(PROJ).CRF
+CMH01.OBJ +
+$(OBJS_EXT)
+$(PROJ).EXE
+$(MAPFILE)
+c:\msvc\lib\+
+c:\msvc\mfc\lib\+
+CMHGRFX.LIB+
+$(LIBS)
+$(DEFFILE);
+<<
+	link $(LFLAGS) @$(PROJ).CRF
+
+run: $(PROJ).EXE
+	$(PROJ) $(RUNFLAGS)
+
+
+$(PROJ).BSC: $(SBRS)
+	bscmake @<<
+/o$@ $(SBRS)
+<<

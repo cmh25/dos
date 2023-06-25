@@ -1,0 +1,211 @@
+Microsoft (R) Macro Assembler Version 6.11		    12/25/99 17:30:30
+..\PROTEST\protest.asm					     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;				protest.asm
+				;				 12-25-99
+				;
+				; Copies a DOS .exe file into a 512 byte buffer.
+				; Then writes the buffer to the boot sector of a:
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				.model small
+				.586p
+				.stack 100h
+ 0000				.data
+ 0000  0200 [				buffer		db	512 dup(0)
+        00
+       ]
+ 0200 0D 53 6F 6D 65 74			error1		db	0dh,'Something went wrong!$'
+       68 69 6E 67 20 77
+       65 6E 74 20 77 72
+       6F 6E 67 21 24
+ 0217 0D 4F 4B 24			success 	db	0dh,'OK$'
+ 021B 04				count		db	4
+ 0000				.code
+ 0000				start:
+ 0000  EB 79				jmp skip
+ 0002				      bootdisk:
+					;
+					; Instructions to be copied to boot disk
+					; Execution will begin here at bootup
+					;********************************************************************
+					;********************************************************************
+
+					;
+					; Setup the memory allocation bitfield to all zeros
+					; Bit field is 524,288 bytes
+					; 1 bit allocates 1,024 bytes(1K)
+					; So the total amount of allocateable memory
+					; is 4,294,967,296(4GB)
+					;
+					; To begin with the first 1,048,576(1MB) is allocated
+					; for system use
+					;
+					; So first just make sure everything from 07e0:0000
+					; to 9fff:000f is set to zero
+ 0002  B8 07E0				mov ax,07e0h
+ 0005  8E C0				mov es,ax
+ 0007				      again1:
+
+ 0007  8C C2				mov dx,es
+ 0009  E8 0016				call outreg
+
+ 000C  BF 0000				mov di,0
+ 000F  B0 00				mov al,0
+ 0011  B9 0010				mov cx,16
+ 0014  F3/ AA				rep stosb
+ 0016  8C C0				mov ax,es
+ 0018  40				inc ax
+ 0019  8E C0				mov es,ax
+ 001B  3D A000				cmp ax,0a000h
+ 001E  75 E7				jnz again1
+
+ 0020				      stop:
+ 0020  EB FE				jmp stop
+
+ 0022				      outreg:
+ 0022  8B DA				mov bx,dx
+ 0024  C1 C3 04				rol bx,4
+ 0027  83 E3 0F				and bx,000fh
+ 002A  8A C3				mov al,bl
+ 002C  04 30				add al,48
+					.if al>57
+ 0032  04 07					add al,7
+					.endif
+ 0034  E8 003D				call outc
+ 0037  8B DA				mov bx,dx
+ 0039  C1 C3 08				rol bx,8
+ 003C  83 E3 0F				and bx,000fh
+ 003F  8A C3				mov al,bl
+ 0041  04 30				add al,48
+					.if al>57
+ 0047  04 07					add al,7
+					.endif
+ 0049  E8 0028				call outc
+ 004C  8B DA				mov bx,dx
+ 004E  C1 CB 04				ror bx,4
+ 0051  83 E3 0F				and bx,000fh
+ 0054  8A C3				mov al,bl
+ 0056  04 30				add al,48
+					.if al>57
+ 005C  04 07					add al,7
+					.endif
+ 005E  E8 0013				call outc
+ 0061  8B DA				mov bx,dx
+ 0063  83 E3 0F				and bx,000fh
+ 0066  8A C3				mov al,bl
+ 0068  04 30				add al,48
+					.if al>57
+ 006E  04 07					add al,7
+					.endif
+ 0070  E8 0001				call outc
+ 0073  C3				ret
+ 0074				      outc:
+ 0074  B4 0E				mov ah,0eh
+ 0076  B7 00				mov bh,0
+ 0078  CD 10				int 10h
+ 007A  C3				ret
+
+					;********************************************************************
+					;********************************************************************
+ 007B				      skip:
+					;
+					; Copy CS:bootdisk to buffer (512 bytes)
+					;
+ 007B  B8 ---- R			mov ax,@data
+ 007E  8E D8				mov ds,ax
+ 0080  1E				push ds
+ 0081  8E C0				mov es,ax
+ 0083  BF 0000 R			mov di,offset buffer
+ 0086  8C C8				mov ax,cs
+ 0088  8E D8				mov ds,ax
+ 008A  B9 007B R			mov cx,skip
+ 008D  81 E9 0002 R			sub cx,bootdisk
+ 0091  BE 0002 R			mov si,bootdisk
+ 0094  F3/ A4				rep movsb
+ 0096  1F				pop ds
+					;
+					; Write buffer to file
+					;
+ 0097				      again:
+ 0097  FE 0E 021B R			dec count
+ 009B  80 3E 021B R 00			cmp count,0
+ 00A0  74 24				jz error
+ 00A2  B4 00				mov ah,0
+ 00A4  B2 00				mov dl,0
+ 00A6  CD 13				int 13h
+ 00A8  B8 0301				mov ax,0301h
+ 00AB  B5 00				mov ch,0
+ 00AD  B1 01				mov cl,1
+ 00AF  B6 00				mov dh,0
+ 00B1  B2 00				mov dl,0
+ 00B3  BB 0000 R			mov bx,offset buffer
+ 00B6  CD 13				int 13h
+ 00B8  80 FC 00				cmp ah,0
+ 00BB  75 DA				jnz again
+ 00BD  BA 0217 R			mov dx,offset success
+ 00C0  B4 09				mov ah,9
+ 00C2  CD 21				int 21h
+ 00C4  EB 07				jmp done
+ 00C6				      error:
+					;
+					; Error handling
+					;
+ 00C6  BA 0200 R			mov dx,offset error1
+ 00C9  B4 09				mov ah,9
+ 00CB  CD 21				int 21h
+ 00CD				      done:
+					;
+					; Exit
+					;
+ 00CD  B8 4C00				mov ax,4c00h
+ 00D0  CD 21				int 21h
+
+				end start
+Microsoft (R) Macro Assembler Version 6.11		    12/25/99 17:30:30
+..\PROTEST\protest.asm					     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 021C	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 0100	  Para	  Stack	  'STACK'	 
+_TEXT  . . . . . . . . . . . . .	16 Bit	 00D2	  Word	  Public  'CODE'	
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0000h	 
+@DataSize  . . . . . . . . . . .	Number	 0000h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0002h	 
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+again1 . . . . . . . . . . . . .	L Near	 0007	  _TEXT	
+again  . . . . . . . . . . . . .	L Near	 0097	  _TEXT	
+bootdisk . . . . . . . . . . . .	L Near	 0002	  _TEXT	
+buffer . . . . . . . . . . . . .	Byte	 0000	  _DATA	
+count  . . . . . . . . . . . . .	Byte	 021B	  _DATA	
+done . . . . . . . . . . . . . .	L Near	 00CD	  _TEXT	
+error1 . . . . . . . . . . . . .	Byte	 0200	  _DATA	
+error  . . . . . . . . . . . . .	L Near	 00C6	  _TEXT	
+outc . . . . . . . . . . . . . .	L Near	 0074	  _TEXT	
+outreg . . . . . . . . . . . . .	L Near	 0022	  _TEXT	
+skip . . . . . . . . . . . . . .	L Near	 007B	  _TEXT	
+start  . . . . . . . . . . . . .	L Near	 0000	  _TEXT	
+stop . . . . . . . . . . . . . .	L Near	 0020	  _TEXT	
+success  . . . . . . . . . . . .	Byte	 0217	  _DATA	
+
+	   0 Warnings
+	   0 Errors

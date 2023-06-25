@@ -1,0 +1,1 @@
+Half-baked attempt to design an operating system from scratch.

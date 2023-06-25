@@ -1,0 +1,212 @@
+Microsoft (R) Macro Assembler Version 6.11		    01/17/00 18:02:02
+PROTEST2.ASM						     Page 1 - 1
+
+
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+				;								 protest2.asm
+				;								   1-17-00
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+				.model large
+				.586p
+				include protest2.inc
+			      C ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+			      C ;				  protest2.inc
+			      C ;				   1-17-00
+			      C ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+			      C 
+ 0008			      C descriptor struc
+ 0000  0000		      C 	size_0_15	dw	0
+ 0002  0000		      C 	base_0_15	dw	0
+ 0004  00		      C 	base_16_23	db	0
+ 0005  00		      C 	ops1		db	0
+ 0006  00		      C 	ops2		db	0
+ 0007  00		      C 	base_24_31	db	0
+			      C descriptor ends
+			      C 
+				.stack 2000h
+ 0000				.data
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 0000 0A 0D				crlf		db	0ah,0dh
+ 0002 4F 4B 0A 0D 24			message1	db	"OK",0ah,0dh,"$"
+ 0007 53 6F 6D 65 74 68			message2	db	"Something went wrong",0ah,0dh,"$"
+       69 6E 67 20 77 65
+       6E 74 20 77 72 6F
+       6E 67 0A 0D 24
+ 001E  0200 [				buffer1 	db	512 dup(0)
+        00
+       ]
+ 021E  0800 [				buffer2345	db	2048 dup(0)
+        00
+       ]
+				;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 0000				code segment word public use16 'CODE'
+					assume cs:code
+
+ 0000				start:
+
+ 0000  B8 ---- R			mov ax,@data
+ 0003  8E D8				mov ds,ax
+ 0005  8E C0				mov es,ax
+
+					;
+					; copy code16 to sector1
+					;
+ 0007  1E				push ds
+ 0008  BF 001E R			mov di,offset buffer1
+ 000B  8C C8				mov ax,cs
+ 000D  8E D8				mov ds,ax
+ 000F  BE 7C00 R			mov si,start16
+ 0012  B9 7C46 R			mov cx,end16
+ 0015  81 E9 7C00 R			sub cx,start16
+ 0019  F3/ A4				rep movsb
+ 001B  1F				pop ds
+
+ 001C  B9 0003				mov cx,3
+ 001F				      try:
+ 001F  51				push cx
+ 0020  B8 0000				mov ax,0
+ 0023  B2 00				mov dl,0
+ 0025  CD 13				int 13h
+ 0027  BB 001E R			mov bx,offset buffer1
+ 002A  B4 03				mov ah,3
+ 002C  B0 01				mov al,1
+ 002E  B5 00				mov ch,0
+ 0030  B1 01				mov cl,1
+ 0032  B6 00				mov dh,0
+ 0034  B2 00				mov dl,0
+ 0036  CD 13				int 13h
+ 0038  59				pop cx
+ 0039  80 FC 00				cmp ah,0
+ 003C  74 05				jz writesuccess
+ 003E  49				dec cx
+ 003F  75 DE				jnz try
+ 0041  EB 09				jmp writefail
+ 0043				      writesuccess:
+ 0043  B4 09				mov ah,9
+ 0045  BA 0002 R			mov dx,offset message1
+ 0048  CD 21				int 21h
+ 004A  EB 09				jmp writedone
+ 004C				      writefail:
+ 004C  B4 09				mov ah,9
+ 004E  BA 0007 R			mov dx,offset message2
+ 0051  CD 21				int 21h
+ 0053  EB 00				jmp writedone
+ 0055				      writedone:
+
+					;
+					; copy code32 to sector2345
+					;
+
+ 0055  B8 4C00				mov ax,4c00h
+ 0058  CD 21				int 21h
+
+ 0A1E				code ends
+
+ 0000				code16 segment word public use16  'CODE'
+					org 7c00h
+ 7C00				start16:
+ 7C00  B8 0013				mov ax,13h
+ 7C03  CD 10				int 10h
+ 7C05  B8 A000				mov ax,0a000h
+ 7C08  8E C0				mov es,ax
+ 7C0A  BF 0000				mov di,0
+ 7C0D  B0 01				mov al,1
+ 7C0F  B9 FA00				mov cx,64000
+ 7C12  F3/ AA				rep stosb
+ 7C14				      stay:
+ 7C14  EB FE				jmp stay
+
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+					; DATA
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ 7C16				      gdt:
+ 7C16 0000 0000 00 00 00		entry_0 	descriptor <>
+       00
+ 7C1E FFFF 7C00 00 9F 10		code_0		descriptor <0ffffh,7c00h,,9fh,10h,>
+       00
+ 7C26 FFFF 7C00 00 93 10		data_0		descriptor <0ffffh,7c00h,,93h,10h,>
+       00
+ 7C2E FFFF 9000 00 93 10		stack_0 	descriptor <0ffffh,9000h,,93h,10h,>
+       00
+ 7C36 FFFF 8000 0B 93 10		vga_text	descriptor <0ffffh,8000h,0bh,93h,10h,>
+       00
+ 7C3E 0000 0000 00 00 00		vga_graph	descriptor <>
+       00
+ 7C46				      endgdt:
+
+					;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 7C46				end16:
+ 0A1E				code16 ends
+
+				end start
+Microsoft (R) Macro Assembler Version 6.11		    01/17/00 18:02:02
+PROTEST2.ASM						     Symbols 2 - 1
+
+
+
+
+Structures and Unions:
+
+                N a m e                  Size
+                                         Offset      Type
+
+descriptor . . . . . . . . . . .	 0008
+  size_0_15  . . . . . . . . . .	 0000	     Word
+  base_0_15  . . . . . . . . . .	 0002	     Word
+  base_16_23 . . . . . . . . . .	 0004	     Byte
+  ops1 . . . . . . . . . . . . .	 0005	     Byte
+  ops2 . . . . . . . . . . . . .	 0006	     Byte
+  base_24_31 . . . . . . . . . .	 0007	     Byte
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+DGROUP . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	16 Bit	 0A1E	  Word	  Public  'DATA'	
+STACK  . . . . . . . . . . . . .	16 Bit	 2000	  Para	  Stack	  'STACK'	 
+PROTEST2_TEXT  . . . . . . . . .	16 Bit	 0000	  Word	  Public  'CODE'	
+code16 . . . . . . . . . . . . .	16 Bit	 7C46	  Word	  Public  'CODE'	
+code . . . . . . . . . . . . . .	16 Bit	 005A	  Word	  Public  'CODE'	
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 0001h	 
+@DataSize  . . . . . . . . . . .	Number	 0001h	 
+@Interface . . . . . . . . . . .	Number	 0000h	 
+@Model . . . . . . . . . . . . .	Number	 0005h	 
+@code  . . . . . . . . . . . . .	Text   	 PROTEST2_TEXT
+@data  . . . . . . . . . . . . .	Text   	 DGROUP
+@fardata?  . . . . . . . . . . .	Text   	 FAR_BSS
+@fardata . . . . . . . . . . . .	Text   	 FAR_DATA
+@stack . . . . . . . . . . . . .	Text   	 DGROUP
+buffer1  . . . . . . . . . . . .	Byte	 001E	  _DATA	
+buffer2345 . . . . . . . . . . .	Byte	 021E	  _DATA	
+code_0 . . . . . . . . . . . . .	descriptor  7C1E     code16	
+crlf . . . . . . . . . . . . . .	Byte	 0000	  _DATA	
+data_0 . . . . . . . . . . . . .	descriptor  7C26     code16	
+end16  . . . . . . . . . . . . .	L Near	 7C46	  code16	
+endgdt . . . . . . . . . . . . .	L Near	 7C46	  code16	
+entry_0  . . . . . . . . . . . .	descriptor  7C16     code16	
+gdt  . . . . . . . . . . . . . .	L Near	 7C16	  code16	
+message1 . . . . . . . . . . . .	Byte	 0002	  _DATA	
+message2 . . . . . . . . . . . .	Byte	 0007	  _DATA	
+stack_0  . . . . . . . . . . . .	descriptor  7C2E     code16	
+start16  . . . . . . . . . . . .	L Near	 7C00	  code16	
+start  . . . . . . . . . . . . .	L Near	 0000	  code	
+stay . . . . . . . . . . . . . .	L Near	 7C14	  code16	
+try  . . . . . . . . . . . . . .	L Near	 001F	  code	
+vga_graph  . . . . . . . . . . .	descriptor  7C3E     code16	
+vga_text . . . . . . . . . . . .	descriptor  7C36     code16	
+writedone  . . . . . . . . . . .	L Near	 0055	  code	
+writefail  . . . . . . . . . . .	L Near	 004C	  code	
+writesuccess . . . . . . . . . .	L Near	 0043	  code	
+
+	   0 Warnings
+	   0 Errors
